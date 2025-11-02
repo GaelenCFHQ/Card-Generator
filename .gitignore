@@ -1,0 +1,9 @@
+# Office/Windows noise
+~$*
+*.tmp
+Thumbs.db
+*.lnk
+
+# Build/exports
+*.png
+*.svg

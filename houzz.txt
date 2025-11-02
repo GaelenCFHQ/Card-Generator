@@ -36,9 +36,11 @@
      r="56.098"
      fill="#007ab9"
      id="circle1"
-     style="fill:#284b66;fill-opacity:1" />
+     style="display:inline;fill:#284b66;fill-opacity:1"
+     inkscape:label="circle1" />
   <path
-     style="fill:#ffffff;stroke-width:0.0896851;fill-opacity:1"
+     style="display:inline;fill:#ffffff;fill-opacity:1;stroke-width:0.0896851"
      d="M 28.878587,56.008316 V 26.053508 h 6.681537 6.681536 v 7.172299 7.172299 l 0.515689,0.152074 c 0.283629,0.08364 9.354151,2.68095 20.156716,5.771797 l 19.641026,5.619722 0.02265,17.010712 0.02265,17.010712 H 72.555439 62.510482 v -9.46234 -9.46234 l -6.7488,0.02299 -6.748801,0.02299 -0.02283,9.439351 -0.02283,9.439352 H 38.922901 28.878587 Z"
-     id="path28" />
+     id="path28"
+     inkscape:label="path1" />
 </svg>

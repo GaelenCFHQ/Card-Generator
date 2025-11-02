@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 1024 1024"
+   id="facebook_clean"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg">
+
+  <!-- 1. The #284b66 background circle -->
+  <circle
+     fill="#284b66"
+     cx="512"
+     cy="512"
+     r="512" />
+
+  <!-- 2. The white 'f' logo path, extracted from facebook.txt (path2) -->
+  <path
+     fill="#ffffff"
+     d="M711.3,660,734,512H592V415.95728C592,375.46667,611.83508,336,675.43713,336H740V210s-58.59235-10-114.61078-10C508.43854,200,432,270.87982,432,399.2V512H302V660H432v357.77777a517.39619,517.39619,0,0,0,160,0V660Z" />
+</svg>

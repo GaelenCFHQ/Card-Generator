@@ -1,0 +1,265 @@
+==============================================================================
+QRVCARD GENERATOR V4 - VBA IMPORT INSTRUCTIONS
+==============================================================================
+
+IMPORTANT: The base workbook is delivered as .xlsx (not .xlsm) to avoid
+"corrupted file" errors. You'll save as .xlsm AFTER importing VBA modules.
+
+==============================================================================
+STEP 1: OPEN BASE WORKBOOK (2 minutes)
+==============================================================================
+
+1. Locate QRVCARD_GENERATOR_V4.xlsx
+2. Open in Excel
+3. If prompted about macros → Click "Enable Editing"
+4. Verify 3 sheets visible:
+   - Instructions
+   - Data Entry (39 columns with colored headers)
+   - Settings
+
+✓ Workbook structure ready
+
+==============================================================================
+STEP 2: ENABLE DEVELOPER TAB (1 minute - ONE TIME ONLY)
+==============================================================================
+
+If Developer tab not visible in ribbon:
+
+1. File → Options
+2. Customize Ribbon
+3. Check "Developer" in right column
+4. OK
+
+✓ Developer tab now visible
+
+==============================================================================
+STEP 3: IMPORT VBA MODULES (10 minutes)
+==============================================================================
+
+3A. Open VBA Editor
+--------------------
+Press Alt+F11 (or Developer tab → Visual Basic)
+
+3B. Import Standard Modules (5 modules)
+-----------------------------------------
+For EACH of these files, do:
+   File → Import File → Select file → Open
+
+Import in this order (IMPORTANT - Module5_Utilities must be first):
+
+   1. Module5_Utilities.bas   ← IMPORT FIRST (other modules depend on it)
+   2. Module4_QRCode.bas
+   3. Module2_VCardBuilder.bas
+   4. Module3_HTMLBuilder.bas
+   5. Module1_Core.bas
+
+After importing, you should see these in Project Explorer under "Modules"
+
+✓ 5 standard modules imported
+
+3C. Import Class Modules (2 files)
+------------------------------------
+ThisWorkbook.cls:
+   1. In Project Explorer, double-click "ThisWorkbook"
+   2. Delete any existing code in the code window
+   3. Open ThisWorkbook.cls in Notepad
+   4. Copy ALL code (Ctrl+A, Ctrl+C)
+   5. Paste into VBA Editor (Ctrl+V)
+   6. File → Save
+
+Sheet1.cls (Data Entry sheet):
+   1. In Project Explorer, expand "Microsoft Excel Objects"
+   2. Double-click "Sheet1 (Data Entry)"
+   3. Delete any existing code
+   4. Open Sheet1.cls in Notepad
+   5. Copy ALL code (Ctrl+A, Ctrl+C)
+   6. Paste into VBA Editor (Ctrl+V)
+   7. File → Save
+
+✓ 2 class modules imported
+
+3D. Create Progress Bar UserForm (15 minutes - MANDATORY)
+-----------------------------------------------------------
+This progress bar is REQUIRED for batch exports.
+
+1. In VBA Editor: Insert → UserForm
+2. Set form name to "frmProgress" (in Properties window, press F4 if not visible)
+3. Set form properties:
+   - Width: 600
+   - Height: 240
+   - Caption: "Export Progress"
+   - StartUpPosition: 1 - CenterOwner
+
+4. Add controls from Toolbox (View → Toolbox if not visible):
+
+   CONTROL 1 - lblTitle (Label):
+   ------------------------------
+   - Name: lblTitle
+   - Caption: "Exporting Digital Business Cards"
+   - Font: Bold, 11pt
+   - TextAlign: Center (2)
+   - Position: Top=20, Left=50, Width=500, Height=20
+
+   CONTROL 2 - lblProgress (Label):
+   ---------------------------------
+   - Name: lblProgress
+   - Caption: "Processing: [Name]"
+   - Font: Regular, 9pt
+   - Position: Top=60, Left=50, Width=500, Height=20
+
+   CONTROL 3 - frmProgressBar (Frame):
+   ------------------------------------
+   - Name: frmProgressBar
+   - Caption: (leave empty)
+   - BackColor: Light Gray (&H00E0E0E0)
+   - Position: Top=100, Left=50, Width=500, Height=30
+
+   CONTROL 4 - lblBar (Label) - PLACE INSIDE THE FRAME:
+   ------------------------------------------------------
+   - Name: lblBar
+   - Caption: (leave empty)
+   - BackColor: Blue (&H00FF8000)
+   - Position: Top=2, Left=2, Width=0, Height=26
+   - NOTE: This must be INSIDE frmProgressBar frame
+
+   CONTROL 5 - lblStatus (Label):
+   -------------------------------
+   - Name: lblStatus
+   - Caption: "0 of 0 complete (0%)"
+   - Font: Regular, 9pt
+   - TextAlign: Center (2)
+   - Position: Top=150, Left=50, Width=500, Height=20
+
+5. Double-click the form to open code window
+6. Open frmProgress.frm in Notepad
+7. Copy ALL code between:
+   "Option Explicit" and "End" (do NOT copy the VERSION or Begin/End form lines)
+8. Paste into VBA code window
+9. File → Save
+
+✓ Progress bar form created
+
+3E. Verify Import
+------------------
+In Project Explorer, you should see:
+
+VBAProject (QRVCARD_GENERATOR_V4.xlsx)
+├── Microsoft Excel Objects
+│   ├── ThisWorkbook (with code)
+│   ├── Sheet1 (Data Entry) (with code)
+│   ├── Sheet2 (Settings)
+│   └── Sheet3 (Instructions)
+├── Forms
+│   └── frmProgress
+└── Modules
+    ├── Module1_Core
+    ├── Module2_VCardBuilder
+    ├── Module3_HTMLBuilder
+    ├── Module4_QRCode
+    └── Module5_Utilities
+
+✓ All modules imported
+
+==============================================================================
+STEP 4: SAVE AS .XLSM (2 minutes)
+==============================================================================
+
+CRITICAL: Now that VBA is imported, save as macro-enabled workbook.
+
+1. Close VBA Editor (Alt+Q)
+2. File → Save As
+3. Save as type: Excel Macro-Enabled Workbook (*.xlsm)
+4. Filename: QRVCARD_GENERATOR_V4.xlsm
+5. Save
+
+✓ File saved as .xlsm
+
+==============================================================================
+STEP 5: ENABLE MACROS (1 minute)
+==============================================================================
+
+1. Close the file
+2. Reopen QRVCARD_GENERATOR_V4.xlsm
+3. Yellow security bar appears: "SECURITY WARNING Macros have been disabled"
+4. Click "Enable Content"
+
+✓ Macros enabled
+
+==============================================================================
+STEP 6: ADD EXPORT BUTTONS (5 minutes - OPTIONAL)
+==============================================================================
+
+For easier access, add buttons to Data Entry sheet:
+
+1. Go to Data Entry sheet
+2. Developer tab → Insert → Button (Form Control)
+3. Draw button in a free cell (e.g., AM1)
+4. Assign Macro dialog appears
+5. Select macro and click OK:
+
+Button suggestions:
+   - "Export Single Row" → Module1_Core.ExportSingleRow
+   - "Export vCard Only" → Module1_Core.ExportVcardOnly
+   - "Export HTML Only" → Module1_Core.ExportHTMLOnly
+   - "Export All Marked" → Module1_Core.ExportAll
+
+6. Right-click button → Edit Text → Change button label
+7. Repeat for other buttons
+
+✓ Export buttons added
+
+==============================================================================
+STEP 7: TEST EXPORT (5 minutes)
+==============================================================================
+
+7A. Add Test Data
+-----------------
+1. Go to Data Entry sheet
+2. Row 2, fill required fields (marked with * in header):
+   - Column A: x (export marker)
+   - Column B: Matas
+   - Column C: Gaelen
+   - Column F: gmatas@closetfactoryhq.com
+   - Column G: (410) 991-3275
+   - Column J: Design Systems Specialist
+   - Column L: Closet Factory Franchise Corporation
+   - Column O: Deerfield Beach
+   - Column P: FL
+   - Column Q: 33442
+
+7B. Run Export
+--------------
+1. Select any cell in row 2
+2. Click "Export Single Row" button (or press Alt+F8 → ExportSingleRow → Run)
+3. Choose save location (e.g., Documents folder)
+4. Wait for "Export successful!" message
+
+7C. Verify Files
+----------------
+Check save location for:
+   ✓ Matas_Gaelen.vcf (vCard file)
+   ✓ Matas_Gaelen.html (HTML landing page)
+
+7D. Test Files
+--------------
+   ✓ Double-click .vcf → Should open in Contacts
+   ✓ Double-click .html → Should open in browser with card
+
+✓ Export working!
+
+==============================================================================
+COMPLETE! YOU'RE READY TO USE QRVCARD V4
+==============================================================================
+
+Next steps:
+   1. Add your real contact data
+   2. Fill in social media URLs (columns T-AB)
+   3. Configure Google Analytics (Settings sheet) - OPTIONAL
+   4. Export your digital business card!
+
+For field reference, see: V4_QUICK_REFERENCE.txt
+For architecture details, see: V4_ARCHITECTURE.txt
+
+Support: gmatas@closetfactoryhq.com
+
+==============================================================================

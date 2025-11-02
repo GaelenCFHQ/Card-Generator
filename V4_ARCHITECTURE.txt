@@ -1,0 +1,787 @@
+==============================================================================
+QRVCARD GENERATOR V4 - TECHNICAL ARCHITECTURE
+==============================================================================
+
+PROJECT OVERVIEW
+Version: 4.0 (Production Ready)
+Purpose: Generate vCard (.vcf) and HTML digital business cards
+Platform: Excel VBA (macro-enabled workbook)
+Standards: vCard 3.0 (RFC 2426), HTML5, GA4
+
+==============================================================================
+FILE STRUCTURE
+==============================================================================
+
+QRVCARD_GENERATOR_V4.xlsm
+├── Worksheets (3)
+│   ├── Instructions      Quick start guide, column reference
+│   ├── Data Entry        39 columns with validation & formulas
+│   └── Settings          Google Analytics configuration
+│
+├── VBA Project
+│   ├── Microsoft Excel Objects
+│   │   ├── ThisWorkbook.cls          Workbook events
+│   │   └── Sheet1.cls (Data Entry)   Data validation events
+│   │
+│   ├── Forms
+│   │   └── frmProgress               Progress bar (MANDATORY)
+│   │
+│   └── Modules
+│       ├── Module1_Core              Export orchestration
+│       ├── Module2_VCardBuilder      vCard generation
+│       ├── Module3_HTMLBuilder       HTML generation
+│       ├── Module4_QRCode            QR code API integration
+│       └── Module5_Utilities         Helper functions
+
+==============================================================================
+DATA FLOW ARCHITECTURE
+==============================================================================
+
+                           USER ACTION
+                                │
+                    ┌───────────┴───────────┐
+                    │                       │
+              Single Export           Batch Export
+                    │                       │
+                    ↓                       ↓
+           MODULE 1: CORE         MODULE 1: CORE
+           ─────────────────      ─────────────────
+           • Validate fields      • Get marked rows
+           • Get folder path      • Get folder path
+           • Generate filename    • CREATE PROGRESS BAR ←── MANDATORY
+                    │                       │
+                    └──────────┬────────────┘
+                               ↓
+                    ┌──────────┴──────────┐
+                    │                     │
+          ┌─────────▼──────────┐    ┌────▼────────────┐
+          │  MODULE 2: VCARD   │    │  MODULE 3: HTML │
+          │  ─────────────────  │    │  ───────────────│
+          │  • Read row data    │    │  • Read row data│
+          │  • Format name      │    │  • Call vCard   │◄─┐
+          │  • Build RFC 2426   │    │  • Call QR code │  │
+          │  • Write .vcf       │    │  • Build HTML   │  │
+          └────────────────────┘    │  • Social icons │  │
+                                    │  • Embed QR     │  │
+                                    │  • Analytics    │  │
+                                    │  • Write .html  │  │
+                                    └────┬────────────┘  │
+                                         │               │
+                                    ┌────▼────────────┐  │
+                                    │ MODULE 4: QRCODE│  │
+                                    │ ──────────────── │  │
+                                    │ • URL encode    │  │
+                                    │ • Google Charts │  │
+                                    │ • Return URL    │  │
+                                    └─────────────────┘  │
+                                         │               │
+                    ┌────────────────────┴───────────────┘
+                    │
+          ┌─────────▼──────────┐
+          │ MODULE 5: UTILITIES │
+          │ ─────────────────── │
+          │ • SanitizeFilename  │
+          │ • GetCellValue      │
+          │ • FormatPhone       │
+          │ • ValidateEmail     │
+          │ • EscapeHTML        │
+          │ • DebugLog          │
+          └─────────────────────┘
+                    │
+                    ↓
+            Update Export Tracking
+            (Columns AI-AL)
+                    │
+                    ↓
+              Success Message
+
+==============================================================================
+MODULE DEPENDENCIES
+==============================================================================
+
+Module1_Core
+├── Depends on: Module2_VCardBuilder, Module3_HTMLBuilder, Module5_Utilities
+├── Uses: frmProgress (MANDATORY for ExportAll)
+└── Public Functions:
+    ├── ExportSingleRow()   - vCard + HTML
+    ├── ExportVcardOnly()   - vCard only
+    ├── ExportHTMLOnly()    - HTML only
+    └── ExportAll()         - Batch with progress bar
+
+Module2_VCardBuilder
+├── Depends on: Module5_Utilities
+├── Standalone: Can be used independently
+└── Public Functions:
+    ├── SaveVcard()         - Generate and save
+    └── GenerateVcard()     - Return vCard text
+
+Module3_HTMLBuilder
+├── Depends on: Module2_VCardBuilder, Module4_QRCode, Module5_Utilities
+├── Complex: Most feature-rich module
+└── Public Functions:
+    └── SaveHTML()          - Generate and save HTML
+
+Module4_QRCode
+├── Depends on: Module5_Utilities (optional, for logging only)
+├── Standalone: Can be used independently
+└── Public Functions:
+    ├── GenerateQRCodeDataURL()  - Return Google Charts URL
+    └── GetQRCodeImageSize()     - Get size from Settings
+
+Module5_Utilities
+├── Depends on: None (fully standalone)
+├── Purpose: Shared helper functions
+└── Public Functions:
+    ├── SanitizeFilename()       - Clean filenames
+    ├── GetCellValue()           - Safe cell retrieval
+    ├── BuildFormattedName()     - Name construction
+    ├── GetSettingValue()        - Setting retrieval
+    ├── FormatPhoneNumber()      - Phone formatting
+    ├── ValidateEmail()          - Email validation
+    ├── EscapeHTML()             - HTML escaping
+    └── DebugLog()               - Debug logging
+
+ThisWorkbook.cls
+├── Depends on: Module5_Utilities (optional logging)
+└── Events:
+    ├── Workbook_Open()          - Initialize on open
+    └── Workbook_BeforeClose()   - Cleanup before close
+
+Sheet1.cls (Data Entry)
+├── Depends on: Module5_Utilities
+└── Events:
+    └── Worksheet_Change()       - Validate on data entry
+
+frmProgress (UserForm)
+├── Depends on: None (standalone UI)
+└── Public Methods:
+    ├── InitializeProgress()     - Setup
+    └── UpdateProgress()         - Update display
+
+==============================================================================
+39-COLUMN DATA MODEL
+==============================================================================
+
+Column Groups:
+  A-M   (13 cols)  Core Identity      Blue headers
+  N-R   (5 cols)   Location           Gray headers
+  S-AC  (11 cols)  Digital Presence   Green headers
+  AD-AH (5 cols)   Assets & Control   Orange headers
+  AI-AM (5 cols)   Export Tracking    Yellow headers
+
+Key Design Decisions:
+
+1. Dual Role Support
+   ─────────────────
+   J + K: Two titles
+   L + M: Two organizations
+   vCard: Combined in TITLE + NOTE fields
+   HTML: Both displayed prominently
+
+2. Auto-Calculation
+   ────────────────
+   Column E: Full Name formula
+   Format: =TRIM(IF(D2="",C2&" "&B2,C2&" "&D2&" "&B2))
+   Handles missing middle name gracefully
+
+3. Export Marker
+   ─────────────
+   Column A: Any non-empty value
+   Flexible: x, ✓, 1, yes, etc.
+   Used by: ExportAll() for batch selection
+
+4. Social Media
+   ────────────
+   10 platforms (T-AB)
+   Icons only appear if URL filled
+   Platform-specific colors
+   Font-based icons (no image dependencies)
+
+5. Export Tracking
+   ───────────────
+   AI-AL: Auto-updated by export functions
+   AL: Export count increments
+   Useful for distribution tracking
+
+==============================================================================
+VCARD GENERATION (RFC 2426)
+==============================================================================
+
+Standard: vCard 3.0
+Encoding: UTF-8
+Line ending: CRLF (vbCrLf)
+
+Structure:
+  BEGIN:VCARD
+  VERSION:3.0
+  N:Last;First;Middle;;
+  FN:Full Name
+  ORG:Organization Primary
+  TITLE:Title Primary
+  TEL;TYPE=CELL,VOICE:phone
+  TEL;TYPE=WORK,VOICE:phone x ext
+  EMAIL;TYPE=INTERNET,PREF:email
+  URL:website
+  ADR;TYPE=WORK:;;street;city;state;postal;country
+  NOTE:Secondary role + bio
+  REV:timestamp
+  END:VCARD
+
+Dual Role Handling:
+  - Primary: ORG + TITLE fields
+  - Secondary: NOTE field
+  - Bio: Appended to NOTE
+
+Phone Formatting:
+  - Cell: TYPE=CELL,VOICE (primary)
+  - Office: TYPE=WORK,VOICE (secondary)
+  - Extension: Appended as " xNNN"
+
+==============================================================================
+HTML GENERATION
+==============================================================================
+
+Technology Stack:
+  - HTML5
+  - CSS3 (embedded stylesheet)
+  - Vanilla JavaScript (GA4 only)
+  - No external dependencies
+
+Design Features:
+  - Responsive (mobile-friendly)
+  - Gradient background
+  - Rounded card design
+  - Shadow effects
+  - Hover states
+  - Theme support (4 color schemes)
+
+Components:
+  1. Header
+     ├── Full name (h1)
+     ├── Primary role + org
+     └── Secondary role + org (if present)
+
+  2. Content
+     ├── Contact info rows
+     ├── Professional bio
+     ├── Social media icons
+     ├── QR code (embedded data URL)
+     └── Download button (data URI)
+
+  3. Analytics (optional)
+     └── GA4 tracking script
+
+Social Media Icons:
+  Platform    Column  Icon  Color
+  ─────────   ──────  ────  ─────────
+  LinkedIn    T       in    #0077B5
+  Instagram   U       📷    #E4405F
+  Facebook    V       f     #1877F2
+  Twitter/X   W       𝕏     #000000
+  Pinterest   X       P     #E60023
+  YouTube     Y       ▶     #FF0000
+  GitHub      Z       ⚛     #333333
+  Blog        AA      ✍     #FF6B6B
+  Cal.com     AB      📅    #292929
+
+Icon Implementation:
+  - Font-based (Unicode characters)
+  - No image files required
+  - Circular buttons (44px)
+  - Platform colors
+  - Hover effect (lift + shadow)
+
+==============================================================================
+QR CODE GENERATION
+==============================================================================
+
+API: Google Charts API
+URL: https://chart.googleapis.com/chart
+
+Parameters:
+  cht=qr                  Chart type: QR code
+  chs=250x250             Size (configurable)
+  chl=[encoded_vcard]     Data (URL-encoded vCard)
+  choe=UTF-8              Encoding
+  chld=M|1                Error correction Medium, margin 1
+
+Error Correction Levels:
+  L: 7% recovery
+  M: 15% recovery (default)
+  Q: 25% recovery
+  H: 30% recovery
+
+URL Encoding:
+  - Special characters → %XX hex codes
+  - Space → %20
+  - Newline → %0D%0A
+  - Colon → %3A
+  - Semicolon → %3B
+
+Size Validation:
+  - Min: 100px
+  - Max: 500px
+  - Default: 250px
+  - Configurable in Settings sheet
+
+Internet Dependency:
+  ✓ Requires internet connection
+  ✓ Real-time generation (no storage)
+  ✓ No API key required (public service)
+
+==============================================================================
+GOOGLE ANALYTICS INTEGRATION
+==============================================================================
+
+Standard: GA4 (Google Analytics 4)
+Implementation: gtag.js (Global Site Tag)
+
+Configuration:
+  1. Property ID in Settings sheet (B11)
+  2. Per-user enable in Data Entry (AH)
+  3. Franchise code for tracking (AG)
+
+Tracking Structure:
+  Property ID → From Settings sheet
+  └── Custom Dimensions (event-scoped)
+      ├── card_owner: Full name
+      ├── primary_role: Title Primary
+      └── franchise_code: Franchise Code
+
+Events Tracked:
+  1. page_view (automatic)
+     - Fires on HTML page load
+     - Includes custom dimensions
+
+  2. vcard_download (future)
+     - Fires on Download Contact click
+     - Requires JavaScript enhancement
+
+Dual Property Support:
+  B11: Corporate GA4 Property ID
+  B12: Franchise GA4 Property ID
+  
+  Use case: Track all cards corporately,
+            plus franchise-specific tracking
+
+==============================================================================
+DATA VALIDATION SYSTEM
+==============================================================================
+
+Implementation: Sheet1.cls Worksheet_Change event
+Pattern: Intersect() for efficient event handling
+
+Validation Rules:
+
+Column B-D (Names):
+  ─────────────────
+  Rule: Letters, spaces, hyphens, apostrophes only
+  Regex: [A-Za-z \-']+
+  Invalid: Highlight red (RGB 255, 200, 200)
+  Valid: No highlighting
+
+Column F (Email):
+  ────────────────
+  Rule: Must contain @ and .
+  Logic: atPos > 1 AND dotPos > atPos + 1 AND dotPos < length
+  Invalid: Highlight red
+  Valid: No highlighting
+
+Column G-H (Phones):
+  ───────────────────
+  Rule: Auto-format to (XXX) XXX-XXXX
+  Process: Extract digits → Reformat
+  Handles: 10-digit and 11-digit (with leading 1)
+
+Column I (Extension):
+  ────────────────────
+  Rule: Numeric only
+  Invalid: Highlight red
+  Valid: Format as text (@)
+
+Column AF (Theme):
+  ─────────────────
+  Type: Dropdown validation
+  Values: Default | Dark | Corporate | Minimal
+
+Column AH (Analytics):
+  ─────────────────────
+  Type: Dropdown validation
+  Values: TRUE | FALSE
+
+Event Optimization:
+  - EnableEvents = False during changes
+  - Only process rows >= 2 (skip header)
+  - Intersect() checks specific columns only
+  - No full worksheet scan
+
+==============================================================================
+PROGRESS BAR IMPLEMENTATION
+==============================================================================
+
+Form: frmProgress (UserForm)
+Requirement: MANDATORY for ExportAll()
+
+Controls:
+  lblTitle       Title label
+  lblProgress    Current item label
+  lblStatus      Status text (X of Y)
+  frmProgressBar Background frame (gray)
+  lblBar         Progress bar (blue, width animates)
+
+Behavior:
+  1. Show modeless (vbModeless)
+  2. InitializeProgress(totalCount)
+  3. FOR EACH item:
+       UpdateProgress(itemNumber, itemName)
+       DoEvents (keep responsive)
+  4. Unload form
+
+Progress Calculation:
+  percentComplete = (itemNumber / totalCount) * 100
+  barWidth = maxWidth * (percentComplete / 100)
+
+Why Mandatory:
+  - User feedback critical for batch operations
+  - Prevents "Excel not responding" perception
+  - Shows current item being processed
+  - Provides cancel opportunity (DoEvents)
+  - Professional user experience
+
+==============================================================================
+EXPORT TRACKING SYSTEM
+==============================================================================
+
+Columns: AI-AM (Auto-updated)
+
+AI: vCard Exported
+    ───────────────
+    Values: TRUE | (empty)
+    Set by: ExportVcardOnly, ExportSingleRow, ExportAll
+
+AJ: HTML Exported
+    ─────────────
+    Values: TRUE | (empty)
+    Set by: ExportHTMLOnly, ExportSingleRow, ExportAll
+
+AK: Last Export Date
+    ────────────────
+    Format: yyyy-mm-dd hh:mm:ss
+    Updated: Every export
+    Uses: VBA Now() function
+
+AL: Export Count
+    ────────────
+    Type: Integer
+    Increments: On every export
+    Use case: Track card distribution
+             Identify most-shared cards
+
+AM: Notes
+    ─────
+    Type: Free text (user editable)
+    Purpose: Manual tracking notes
+    Examples: "Sent to trade show 10/29"
+             "Printed 50 copies"
+
+Update Logic:
+  Private Sub LogExport(ws, rowNum, exportType)
+    If exportType includes VCARD: AI = TRUE
+    If exportType includes HTML:  AJ = TRUE
+    AK = Now()
+    AL = AL + 1
+  End Sub
+
+==============================================================================
+ERROR HANDLING STRATEGY
+==============================================================================
+
+Pattern: "On Error Resume Next" + Validation
+
+Module1_Core:
+  ✓ Validate required fields before export
+  ✓ Check folder path selection (cancel = exit)
+  ✓ Generate safe filenames (sanitize)
+  ✓ Show user-friendly error messages
+
+Module2_VCardBuilder:
+  ✓ Return empty string on error
+  ✓ Log errors via DebugLog
+  ✓ Safe cell value retrieval
+
+Module3_HTMLBuilder:
+  ✓ Return empty string on error
+  ✓ Validate settings (GA property ID)
+  ✓ HTML escape all user data
+
+Module4_QRCode:
+  ✓ Return empty string on error
+  ✓ URL encode special characters
+  ✓ Validate size parameters
+
+Module5_Utilities:
+  ✓ All functions return safe defaults
+  ✓ GetCellValue returns "" on error
+  ✓ Never throw unhandled exceptions
+
+Debug Logging:
+  #If VBA7 Then
+    Debug.Print timestamp | module | function | message
+  #End If
+
+  Only active in VBA editor (development mode)
+  No performance impact in production
+
+==============================================================================
+SECURITY & PRIVACY
+==============================================================================
+
+Data Storage:
+  ✓ All data stored locally in Excel file
+  ✓ No cloud sync without user action
+  ✓ User controls export location
+
+Network Calls:
+  ✓ Google Charts API (QR generation only)
+  ✓ Google Analytics (optional, user controlled)
+  ✓ No other external services
+
+Macro Security:
+  ✓ Requires user to enable macros
+  ✓ Follows Excel security model
+  ✓ No auto-execution code
+  ✓ No Windows API calls
+  ✓ No shell execution
+
+Social Media URLs:
+  ✓ User-provided (no scraping)
+  ✓ Validated format only
+  ✓ No authentication required
+
+Analytics:
+  ✓ Opt-in per user (Column AH)
+  ✓ No personal data sent without user data
+  ✓ User controls GA property
+  ✓ Standard GA4 privacy policy applies
+
+==============================================================================
+PERFORMANCE CONSIDERATIONS
+==============================================================================
+
+Batch Export Optimization:
+  ✓ Progress bar: DoEvents every iteration
+  ✓ No unnecessary recalculation
+  ✓ Direct cell access (no loops)
+  ✓ Single file save per item
+
+Worksheet Events:
+  ✓ Intersect() pattern (not full sheet scan)
+  ✓ EnableEvents = False during changes
+  ✓ Process only changed cells
+  ✓ No validation on header row
+
+Formula Optimization:
+  ✓ Column E: Single formula, no array
+  ✓ Copied down (no volatile functions)
+  ✓ Manual calculation mode compatible
+
+Memory Management:
+  ✓ Set objects = Nothing after use
+  ✓ Unload forms explicitly
+  ✓ No persistent global variables
+  ✓ Collections freed after batch
+
+Expected Performance:
+  Single export: < 1 second
+  Batch export: ~2-3 seconds per card
+  100 cards: ~5 minutes with progress bar
+
+==============================================================================
+PHASE 2 FEATURES (Future Development)
+==============================================================================
+
+1. Photo Integration (AD-AE)
+   ─────────────────────────
+   - Base64 encode profile photo
+   - Embed in vCard PHOTO field
+   - Display in HTML header
+   - Support: JPG, PNG (< 100KB)
+
+2. QR Code Local Generation
+   ─────────────────────────
+   - Remove Google Charts API dependency
+   - Use VBA QR library or Python integration
+   - Offline capability
+   - Custom QR styling
+
+3. Email Signature Templates
+   ──────────────────────────
+   - HTML email signature export
+   - Outlook-compatible format
+   - Gmail-compatible format
+   - Include social icons
+
+4. Franchise Branding
+   ────────────────────
+   - Custom color schemes per franchise
+   - Logo integration
+   - Template variants
+   - Brand guideline enforcement
+
+5. Cloud Hosting Automation
+   ─────────────────────────
+   - FTP upload integration
+   - GitHub Pages auto-deploy
+   - Dropbox/Drive sync
+   - URL shortener integration
+
+6. Multi-Language Support
+   ────────────────────────
+   - Translate interface labels
+   - Locale-specific phone formats
+   - Address format variations
+   - Character set handling
+
+7. vCard Enhanced Fields
+   ──────────────────────
+   - PHOTO (with photo integration)
+   - NICKNAME
+   - CATEGORIES
+   - ANNIVERSARY
+   - GENDER
+
+8. Advanced Analytics
+   ───────────────────
+   - Scan tracking (QR code hits)
+   - Download tracking (vCard downloads)
+   - Geographic distribution
+   - Device detection (mobile vs desktop)
+
+==============================================================================
+TROUBLESHOOTING GUIDE
+==============================================================================
+
+Issue: "Corrupted file" error when opening
+Solution: File is .xlsx (not .xlsm yet)
+Action: Import VBA modules first, then save as .xlsm
+
+Issue: Macros disabled
+Solution: Yellow security bar appears
+Action: Click "Enable Content"
+
+Issue: Export buttons missing
+Solution: Buttons not created yet
+Action: Add buttons manually (Developer tab → Insert → Button)
+        OR: Use Alt+F8 → Select macro → Run
+
+Issue: "Progress bar not found" error
+Solution: frmProgress not imported or controls missing
+Action: Verify frmProgress exists in Forms folder
+        Verify all 5 controls created (lblTitle, lblProgress, etc.)
+
+Issue: Phone number not formatting
+Solution: Invalid phone number (not 10 digits)
+Action: Enter 10-digit number: 4109913275
+        Auto-formats to: (410) 991-3275
+
+Issue: Email validation failing
+Solution: Missing @ or . in email
+Action: Verify email format: user@domain.com
+
+Issue: QR code not loading in HTML
+Solution: No internet connection
+Action: Google Charts API requires internet
+        OR: File opened from local drive (use web server)
+
+Issue: Google Analytics not tracking
+Solution: Property ID not configured
+Action: Settings sheet → Cell B11 → Paste GA4 Property ID
+        Data Entry sheet → Column AH → Set TRUE
+
+Issue: Export All completes but no files created
+Solution: No rows marked for export
+Action: Column A → Type "x" in rows to export
+
+Issue: Files saving to wrong location
+Solution: Folder picker default path
+Action: Browse to desired location in folder picker dialog
+        Default: Documents folder
+
+==============================================================================
+DEVELOPMENT STANDARDS
+==============================================================================
+
+Code Style:
+  ✓ 4-space indentation (never tabs)
+  ✓ Descriptive function/variable names
+  ✓ Comment blocks for each function
+  ✓ Header comment for each module
+  ✓ "Option Explicit" in every module
+
+Error Handling:
+  ✓ Every Public function has error handler
+  ✓ Return safe defaults on error
+  ✓ Log errors via DebugLog
+  ✓ User-friendly error messages
+
+Testing:
+  ✓ Test with single row first
+  ✓ Test with multiple rows (batch)
+  ✓ Test with missing optional fields
+  ✓ Test with invalid data (validation)
+  ✓ Test with long text (bio, names)
+  ✓ Verify .vcf imports correctly
+  ✓ Verify .html renders correctly
+
+Version Control:
+  ✓ Save .xlsm file before major changes
+  ✓ Export VBA modules to .bas/.cls files
+  ✓ Document changes in Notes column (AM)
+  ✓ Increment version in Instructions sheet
+
+==============================================================================
+SUPPORT & MAINTENANCE
+==============================================================================
+
+Contact: gmatas@closetfactoryhq.com
+
+Documentation:
+  - V4_IMPORT_INSTRUCTIONS.txt  Setup guide
+  - V4_QUICK_REFERENCE.txt      Field reference
+  - V4_ARCHITECTURE.txt         This file
+
+Code Maintenance:
+  - All code commented and documented
+  - Modular architecture for easy updates
+  - No hardcoded paths or values
+  - Settings sheet for configuration
+
+Future Updates:
+  - Phase 2 features (see above)
+  - Additional export formats
+  - Enhanced analytics
+  - UI improvements
+
+==============================================================================
+LICENSE & ATTRIBUTION
+==============================================================================
+
+Developer: Gaelen Matas
+Organization: Closet Factory
+Version: 4.0
+Date: October 2025
+
+Technologies:
+  - Microsoft Excel VBA
+  - Google Charts API (QR codes)
+  - Google Analytics 4 (optional)
+  - vCard 3.0 (RFC 2426)
+  - HTML5 / CSS3
+
+Standards Compliance:
+  ✓ vCard 3.0 (RFC 2426)
+  ✓ HTML5 / CSS3
+  ✓ GA4 tracking specifications
+  ✓ Excel VBA best practices
+
+==============================================================================
